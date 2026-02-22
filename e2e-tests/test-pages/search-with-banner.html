@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Abcdef — mock with cookie banner</title>
+    <style>
+        :root{
+          --bg:#ffffff;
+          --muted:#70757a;
+          --accent:#1a73e8;
+          --banner-bg:rgba(32,33,36,0.95);
+          --panel-bg:#fff;
+          --panel-border:rgba(0,0,0,0.12);
+        }
+        html,body{height:100%;}
+        body{
+          margin:0;
+          font-family: Roboto, Arial, sans-serif;
+          background:var(--bg);
+          color:#202124;
+          display:flex;
+          flex-direction:column;
+          min-height:100vh;
+          -webkit-font-smoothing:antialiased;
+          -moz-osx-font-smoothing:grayscale;
+        }
+
+        /* Top nav */
+        header{
+          height:64px;
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          padding:0 24px;
+        }
+        .left, .right{display:flex;align-items:center;gap:16px}
+        .left a, .right a{color:var(--muted);text-decoration:none;font-size:14px}
+        .logo{
+          display:flex;align-items:center;gap:12px;
+          margin-left:8px;
+        }
+        .logo .g{
+          font-weight:700;font-size:24px;letter-spacing:1px;color:#4285F4;
+        }
+        nav .top-links{display:flex;gap:12px}
+
+        /* Main body */
+        main{flex:1;display:flex;flex-direction:column;align-items:center;}
+        .hero{
+          margin-top:90px;text-align:center;flex:0 0 auto;
+        }
+        .google-wordmark{
+          font-family: 'Product Sans', Roboto, Arial, sans-serif;
+          font-size:96px;font-weight:400;margin:0;line-height:1;color:transparent;
+          background:linear-gradient(90deg,#4285F4 0%, #34A853 25%, #FBBC05 50%, #EA4335 75%);
+          -webkit-background-clip:text;background-clip:text;
+          filter:drop-shadow(0 1px 0 rgba(0,0,0,0.05));
+        }
+
+        .search-box{
+          margin-top:28px;display:flex;align-items:center;gap:10px;width:min(720px,90%);
+          border:1px solid #dfe1e5;padding:12px 18px;border-radius:24px;box-shadow:none;
+        }
+        .search-box input{flex:1;border:0;font-size:18px;outline:none}
+        .search-actions{margin-top:18px}
+        .search-actions button{margin:0 6px;padding:8px 16px;border-radius:4px;border:1px solid #f8f9fa;background:#f8f9fa;color:#3c4043;cursor:pointer}
+
+        /* Footer-ish small links */
+        .shortcuts{margin-top:24px;color:var(--muted);font-size:14px}
+
+        /* Big cookie banner overlay */
+        .overlay{
+          position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+          background:rgba(0,0,0,0.55);z-index:9999;
+          transition:opacity .35s ease,visibility .35s ease;opacity:1;visibility:visible;
+        }
+        .overlay.hidden{opacity:0;visibility:hidden;pointer-events:none}
+
+        .cookie-panel{
+          width:min(1100px,96%);max-height:86vh;overflow:auto;border-radius:12px;
+          background:var(--panel-bg);box-shadow:0 10px 30px rgba(0,0,0,0.3);padding:28px;border:1px solid var(--panel-border);
+          display:flex;flex-direction:column;gap:20px;transform:translateY(0);
+        }
+
+        .cookie-left{flex:1;min-width:360px}
+        .cookie-right{width:360px;flex-shrink:0;display:flex;flex-direction:column;gap:12px}
+
+        .cookie-panel h2{margin:6px 0 12px;font-size:20px}
+        .cookie-panel p{margin:0;color:var(--muted);line-height:1.5}
+        .cookie-list{margin-top:12px}
+        .cookie-item{padding:12px;border-radius:8px;border:1px solid #f1f3f4;margin-bottom:10px}
+        .cookie-item h4{margin:0 0 6px;font-size:15px}
+        .cookie-item p{margin:0;color:var(--muted);font-size:13px}
+
+        .btn{display:inline-block;padding:12px 16px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+        .btn-accept{background:var(--accent);color:white}
+        .btn-decline{background:transparent;border:1px solid #dcdcdc;color:#202124}
+
+
+        .panel-footer{display:flex;flex-direction:column;gap:8px}
+        .small-note{font-size:12px;color:var(--muted)}
+
+        /* make sure search still visible behind overlay for visual effect */
+        .dimmed{filter:grayscale(1) brightness(.85)}
+
+        @media (max-width:820px){
+          .google-wordmark{font-size:64px}
+          .cookie-panel{flex-direction:column;padding:18px}
+          .cookie-right{width:100%}
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div class="left">
+        <div class="logo"><span class="g">A</span></div>
+        <nav class="top-links"><a href="#">Maps</a>   <a href="#">Mail</a></nav>
+    </div>
+    <div class="right">
+        <a href="#">Images</a>
+        <a href="#">Sign in</a>
+    </div>
+</header>
+
+<main>
+    <div class="hero" id="page-content">
+        <h1 class="google-wordmark">Abcdef</h1>
+
+        <div class="search-box" role="search" aria-label="Search">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 21l-4.35-4.35" stroke="#5f6368" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="11" cy="11" r="6" stroke="#5f6368" stroke-width="1.5"></circle></svg>
+            <input id="q" type="search" placeholder="Search Abcdef or type a URL">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 11h18" stroke="#e8eaed" stroke-width="2" stroke-linecap="round"></path></svg>
+        </div>
+
+        <div class="search-actions">
+            <button onclick="document.getElementById('q').focus()">Abcdef Search</button>
+            <button onclick="document.getElementById('q').focus()">Good Luck!</button>
+        </div>
+
+        <div class="shortcuts">A clean mock — everything is covered by a large cookie banner.</div>
+    </div>
+</main>
+
+<!-- Cookie overlay (huge) -->
+<div id="cookieOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="cookieTitle">
+    <div class="cookie-panel" role="document">
+        <div class="cookie-left">
+            <h2 id="cookieTitle">We value your privacy</h2>
+            <p>Our partners use cookies and similar technologies to deliver, maintain and improve our services, to measure traffic and personalize content. You can accept all cookies or manage your preferences.</p>
+
+            <div class="cookie-list">
+                <div class="cookie-item">
+                    <h4>Strictly necessary</h4>
+                    <p>Required for basic website functionality. Always active.</p>
+                </div>
+                <div class="cookie-item">
+                    <h4>Performance & analytics</h4>
+                    <p>Helps us understand how the site is used so we can improve it.</p>
+                </div>
+                <div class="cookie-item">
+                    <h4>Advertising</h4>
+                    <p>Used to deliver relevant ads on and off this site.</p>
+                </div>
+            </div>
+
+            <p class="small-note">You can change your preferences at any time in our Privacy Settings.</p>
+        </div>
+
+        <aside class="cookie-right" aria-label="Cookie actions" style="margin-top:auto;width:100%">
+            <div style="display:flex;gap:12px;justify-content:flex-end;align-items:center">
+                <button id="declineBtn" class="btn btn-decline">Decline</button>
+                <button id="acceptBtn" class="btn btn-accept">Accept all cookies</button>
+            </div>
+            <div class="panel-footer" style="margin-top:10px">
+                <p class="small-note">By clicking "Accept all cookies" you agree to the storing of cookies for the purposes described.</p>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script>
+    (function(){
+      const overlay = document.getElementById('cookieOverlay');
+      const accept = document.getElementById('acceptBtn');
+      const decline = document.getElementById('declineBtn');
+      const page = document.getElementById('page-content');
+
+      function hideBanner(){
+        overlay.classList.add('hidden');
+        page.classList.remove('dimmed');
+      }
+
+      function showBanner(){
+        overlay.classList.remove('hidden');
+        page.classList.add('dimmed');
+      }
+
+      // Always show banner on page load
+      showBanner();
+
+      accept.addEventListener('click', hideBanner);
+      decline.addEventListener('click', hideBanner);
+
+      document.addEventListener('keydown', function(e){
+        if(e.key === 'Escape' && !overlay.classList.contains('hidden')){
+          hideBanner();
+        }
+      });
+    })();
+</script>
+</body>
+</html>
