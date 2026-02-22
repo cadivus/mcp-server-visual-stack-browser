@@ -75,3 +75,19 @@ export const ClickAtCoordinatesSchema = z.object({
     .optional()
     .describe("Height of the resized screenshot the coordinates came from"),
 });
+
+export const ScrollSchema = z.object({
+  session_id: z.string().describe("Session ID returned by start_browser"),
+  direction: z
+    .enum(["up", "down", "left", "right"])
+    .describe("Direction to scroll: 'up', 'down', 'left', or 'right'"),
+  scroll_amount: z
+    .number()
+    .positive()
+    .max(100)
+    .optional()
+    .default(70)
+    .describe(
+      "Percentage of the viewport height to scroll (1-100, default: 70)"
+    ),
+});
