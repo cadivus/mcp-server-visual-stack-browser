@@ -13,6 +13,7 @@ import {
   handleGetConsoleLogStacktrace,
 } from "./tools/console-logs.js";
 import { takeScreenshotTool, handleTakeScreenshot } from "./tools/screenshot.js";
+import { clickAtCoordinatesTool, handleClickAtCoordinates } from "./tools/click.js";
 
 // ── MCP Server ────────────────────────────────────────────────────────────────
 export const server = new Server(
@@ -28,6 +29,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     getConsoleLogsTool,
     getConsoleLogStacktraceTool,
     takeScreenshotTool,
+    clickAtCoordinatesTool,
   ],
 }));
 
@@ -38,6 +40,7 @@ const handlers: Record<string, (args: unknown) => Promise<any>> = {
   get_console_logs: handleGetConsoleLogs,
   get_console_log_stacktrace: handleGetConsoleLogStacktrace,
   take_screenshot: handleTakeScreenshot,
+  click_at_coordinates: handleClickAtCoordinates,
 };
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {

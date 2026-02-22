@@ -59,3 +59,19 @@ export const GetConsoleLogStacktraceSchema = z.object({
 export const TakeScreenshotSchema = z.object({
   session_id: z.string().describe("Session ID returned by start_browser"),
 });
+
+export const ClickAtCoordinatesSchema = z.object({
+  session_id: z.string().describe("Session ID from start_browser"),
+  x: z.number().describe("X pixel coordinate"),
+  y: z.number().describe("Y pixel coordinate"),
+  relative_by_width: z
+    .number()
+    .positive()
+    .optional()
+    .describe("Width of the resized screenshot the coordinates came from"),
+  relative_by_height: z
+    .number()
+    .positive()
+    .optional()
+    .describe("Height of the resized screenshot the coordinates came from"),
+});
