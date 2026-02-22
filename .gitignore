@@ -1,0 +1,19 @@
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code
+.vscode/
+
+# MacOS
+.DS_Store
+
+# node_modules
+node_modules/
+
+# build artifacts
+build/
+dist/
+.expo/
