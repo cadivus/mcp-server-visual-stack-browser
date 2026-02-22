@@ -76,6 +76,36 @@ export const ClickAtCoordinatesSchema = z.object({
     .describe("Height of the resized screenshot the coordinates came from"),
 });
 
+export const OcrScreenshotSchema = z.object({
+  session_id: z.string().describe("Session ID returned by start_browser"),
+  lang: z
+    .string()
+    .optional()
+    .default("eng")
+    .describe("Tesseract language code(s), e.g. 'eng', 'deu', 'eng+deu' (default: 'eng')"),
+  blocks: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe(
+      "false (default) = plain text string. " +
+      "true = JSON array of spatially grouped phrases: [{ text, center_x, center_y, is_likely_button? }] — " +
+      "center_x/center_y are ready to pass to click_at_coordinates. " +
+      "is_likely_button field is only present when true. " +
+      "Good for isolating buttons, labels, links."
+    ),
+});
+
+export const OcrScreenshotSearchSchema = z.object({
+  session_id: z.string().describe("Session ID returned by start_browser"),
+  needle: z.string().describe("Case-insensitive substring to search for, e.g. 'akzeptieren' or 'Sign in'."),
+  lang: z
+    .string()
+    .optional()
+    .default("eng")
+    .describe("Tesseract language code(s), e.g. 'eng', 'deu', 'eng+deu' (default: 'eng')"),
+});
+
 export const ScrollSchema = z.object({
   session_id: z.string().describe("Session ID returned by start_browser"),
   direction: z

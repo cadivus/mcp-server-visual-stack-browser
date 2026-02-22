@@ -15,6 +15,7 @@ import {
 import { takeScreenshotTool, handleTakeScreenshot } from "./tools/screenshot.js";
 import { clickAtCoordinatesTool, handleClickAtCoordinates } from "./tools/click.js";
 import { scrollTool, handleScroll } from "./tools/scroll.js";
+import { ocrScreenshotTool, handleOcrScreenshot, ocrScreenshotSearchTool, handleOcrScreenshotSearch } from "./tools/ocr.js";
 
 // ── MCP Server ────────────────────────────────────────────────────────────────
 export const server = new Server(
@@ -32,6 +33,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     takeScreenshotTool,
     clickAtCoordinatesTool,
     scrollTool,
+    ocrScreenshotTool,
+    ocrScreenshotSearchTool,
   ],
 }));
 
@@ -44,6 +47,8 @@ const handlers: Record<string, (args: unknown) => Promise<any>> = {
   take_screenshot: handleTakeScreenshot,
   click_at_coordinates: handleClickAtCoordinates,
   scroll: handleScroll,
+  ocr_screenshot: handleOcrScreenshot,
+  ocr_screenshot_search: handleOcrScreenshotSearch,
 };
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
