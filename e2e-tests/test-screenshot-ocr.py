@@ -9,6 +9,7 @@ runs ocr_screenshot with default parameters, and prints the result.
 import asyncio
 import json
 import os
+import sys
 import socket
 import threading
 import argparse
@@ -66,7 +67,12 @@ async def call_tool(session: ClientSession, name: str, arguments: dict) -> str:
     """Call an MCP tool and return its text content."""
     print(f"\n{'='*60}")
     print(f">>> Calling tool: {name}")
-    print(f"    Arguments: {json.dumps(arguments, indent=2)}")
+
+    # Format arguments with proper line breaks for readability
+    formatted_args = json.dumps(arguments, indent=2)
+    formatted_args = formatted_args.replace('\\n', '\n')
+
+    print(f"    Arguments: {formatted_args}")
     print(f"{'='*60}")
 
     result = await session.call_tool(name, arguments)
@@ -80,7 +86,168 @@ async def call_tool(session: ClientSession, name: str, arguments: dict) -> str:
     return combined
 
 
-async def main(browser: str, blocks: bool) -> None:
+class TestResult:
+    """Track test results"""
+    def __init__(self, name: str):
+        self.name = name
+        self.passed = False
+        self.error = None
+
+    def mark_pass(self):
+        self.passed = True
+        print(f"✅ {self.name} - PASSED")
+
+    def mark_fail(self, error: str):
+        self.passed = False
+        self.error = error
+        print(f"❌ {self.name} - FAILED: {error}")
+
+
+async def run_tests(session: ClientSession, session_id: str, target_url: str) -> list[TestResult]:
+    """Run all OCR tests"""
+    results = []
+
+    # Navigate to test page using execute_javascript (no dedicated navigate tool)
+    await call_tool(session, "execute_javascript", {
+        "session_id": session_id,
+        "script": f"window.location.href = '{target_url}';",
+    })
+    await asyncio.sleep(2)  # Let page load
+
+    # Test text mode
+    text_mode_result = await test_text_mode(session, session_id)
+    results.append(text_mode_result)
+
+    # Test blocks mode
+    blocks_mode_result = await test_blocks_mode(session, session_id)
+    results.append(blocks_mode_result)
+
+    return results
+
+
+async def test_text_mode(session: ClientSession, session_id: str) -> TestResult:
+    """Test OCR in plain text mode"""
+    test = TestResult("OCR Text Mode")
+    
+    print(f"\n{'='*60}")
+    print(f"Testing ocr_screenshot in text mode")
+    print(f"{'='*60}")
+    
+    try:
+        ocr_result = await call_tool(session, "ocr_screenshot", {
+            "session_id": session_id,
+        })
+
+        # Expected text fragments that should appear in the output
+        expected_fragments = [
+            "We value your privacy",
+            "Strictly necessary",
+            "Performance & analytics",
+            "Advertising",
+            "Decline",
+            "Accept all cookies",
+        ]
+        
+        missing_fragments = []
+        for fragment in expected_fragments:
+            if fragment.lower() in ocr_result.lower():
+                print(f"  ✓ Found '{fragment}'")
+            else:
+                print(f"  ✗ Missing '{fragment}'")
+                missing_fragments.append(fragment)
+        
+        if missing_fragments:
+            test.mark_fail(f"Missing text fragments: {', '.join(missing_fragments)}")
+        else:
+            test.mark_pass()
+            
+    except Exception as e:
+        test.mark_fail(str(e))
+    
+    return test
+
+
+async def test_blocks_mode(session: ClientSession, session_id: str) -> TestResult:
+    """Test OCR in blocks mode with coordinate and button detection"""
+    test = TestResult("OCR Blocks Mode")
+    
+    print(f"\n{'='*60}")
+    print(f"Testing ocr_screenshot in blocks mode")
+    print(f"{'='*60}")
+    
+    try:
+        ocr_result = await call_tool(session, "ocr_screenshot", {
+            "session_id": session_id,
+            "blocks": True,
+        })
+
+        results = json.loads(ocr_result)
+        
+        # Expected entries with 2-pixel tolerance for coordinates
+        expected = [
+            {"text": "We value your privacy", "center_x": 195, "center_y": 191, "is_likely_button": False},
+            {"text": "Strictly necessary", "center_x": 168, "center_y": 296, "is_likely_button": False},
+            {"text": "Required for basic website functionality. Always active.", "center_x": 259, "center_y": 320, "is_likely_button": False},
+            {"text": "Performance & analytics", "center_x": 191, "center_y": 375, "is_likely_button": False},
+            {"text": "Advertising", "center_x": 144, "center_y": 453, "is_likely_button": False},
+            {"text": "Decline", "center_x": 989, "center_y": 569, "is_likely_button": True},
+            {"text": "Accept all cookies", "center_x": 1116, "center_y": 569, "is_likely_button": True},
+        ]
+        
+        def coords_match(actual_x, actual_y, expected_x, expected_y, tolerance=2):
+            """Check if coordinates match within tolerance."""
+            return (abs(actual_x - expected_x) <= tolerance and 
+                    abs(actual_y - expected_y) <= tolerance)
+        
+        def find_entry(results, text_fragment):
+            """Find an entry that contains the given text fragment."""
+            for entry in results:
+                if text_fragment.lower() in entry["text"].lower():
+                    return entry
+            return None
+        
+        validation_errors = []
+        for exp in expected:
+            entry = find_entry(results, exp["text"])
+            if not entry:
+                error = f"Entry not found: '{exp['text']}'"
+                print(f"  ✗ {error}")
+                validation_errors.append(error)
+                continue
+            
+            # Check coordinates
+            if not coords_match(entry["center_x"], entry["center_y"], 
+                              exp["center_x"], exp["center_y"]):
+                error = f"'{exp['text']}' - coordinates mismatch: expected ({exp['center_x']}, {exp['center_y']}), got ({entry['center_x']}, {entry['center_y']})"
+                print(f"  ✗ {error}")
+                validation_errors.append(error)
+                continue
+            
+            # Check is_likely_button status
+            expected_button = exp.get("is_likely_button", False)
+            actual_button = entry.get("is_likely_button", False)
+            
+            if expected_button != actual_button:
+                error = f"'{exp['text']}' - button status mismatch: expected {expected_button}, got {actual_button}"
+                print(f"  ✗ {error}")
+                validation_errors.append(error)
+                continue
+            
+            button_status = " [button]" if actual_button else ""
+            print(f"  ✓ '{exp['text']}' at ({entry['center_x']}, {entry['center_y']}){button_status}")
+        
+        if validation_errors:
+            test.mark_fail("; ".join(validation_errors))
+        else:
+            test.mark_pass()
+            
+    except Exception as e:
+        test.mark_fail(str(e))
+    
+    return test
+
+
+async def main(browser: str) -> None:
     # Start local test server
     test_pages_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test-pages")
     port = find_free_port()
@@ -90,8 +257,9 @@ async def main(browser: str, blocks: bool) -> None:
     print(f"Started local test server on port {port}")
     print(f"Serving directory: {test_pages_dir}")
     print(f"Browser: {browser}")
+    print(f"Target URL: {TARGET_URL}\n")
 
-    all_tests_passed = True
+    all_results = []
 
     try:
         server_params = StdioServerParameters(
@@ -99,8 +267,7 @@ async def main(browser: str, blocks: bool) -> None:
             args=[SERVER_SCRIPT],
         )
 
-        print(f"Starting MCP Selenium server: node {SERVER_SCRIPT}")
-        print(f"Target URL: {TARGET_URL}\n")
+        print(f"Starting MCP Selenium server: node {SERVER_SCRIPT}\n")
 
         async with stdio_client(server_params) as (read_stream, write_stream):
             async with ClientSession(read_stream, write_stream) as session:
@@ -112,7 +279,8 @@ async def main(browser: str, blocks: bool) -> None:
                 for tool in tools_result.tools:
                     print(f"  - {tool.name}: {tool.description}")
 
-                # 1. Start headless browser
+                # Start headless browser
+                # selenium-dev-mcp uses top-level headless param (not nested options)
                 start_result = await call_tool(session, "start_browser", {
                     "browser": browser,
                     "headless": True,
@@ -120,160 +288,60 @@ async def main(browser: str, blocks: bool) -> None:
                 session_id = extract_session_id(start_result)
                 print(f"Extracted session ID: {session_id}")
 
-                # 2. Navigate to the target URL
-                await call_tool(session, "execute_javascript", {
-                    "session_id": session_id,
-                    "script": f"window.location.href = '{TARGET_URL}';",
-                })
+                # Run all tests
+                all_results = await run_tests(session, session_id, TARGET_URL)
 
-                # Wait for the page to fully load
-                await asyncio.sleep(2)
-
-                # Test both modes if blocks not specified, otherwise just the requested mode
-                modes_to_test = [blocks] if blocks is not None else [False, True]
-                
-                for test_blocks in modes_to_test:
-                    if not await test_ocr_mode(session, session_id, test_blocks):
-                        all_tests_passed = False
+                # No close_session tool in selenium-dev-mcp;
+                # the server cleans up sessions on SIGTERM when the context manager exits.
 
     finally:
+        # Kill the test server
         print(f"\nShutting down local test server on port {port}...")
         server.shutdown()
         server.server_close()
         print("Test server stopped.")
-        
-        if not all_tests_passed:
-            exit(1)
 
+    # Print comprehensive test report
+    print("\n" + "="*60)
+    print("TEST REPORT")
+    print("="*60)
+    print(f"Browser: {browser}")
+    print(f"Test URL: {TARGET_URL}")
+    print(f"Test Page: search-with-banner.html")
+    print("="*60)
 
-async def test_ocr_mode(session: ClientSession, session_id: str, blocks: bool) -> bool:
-    """Test OCR in the specified mode and return True if all tests pass."""
-    print(f"\n{'='*60}")
-    print(f"Testing ocr_screenshot with blocks={blocks}")
-    print(f"{'='*60}")
-    
-    ocr_result = await call_tool(session, "ocr_screenshot", {
-        "session_id": session_id,
-        "blocks": blocks,
-    })
+    passed_tests = [r for r in all_results if r.passed]
+    failed_tests = [r for r in all_results if not r.passed]
 
-    if not blocks:
-        # Plain text mode - validate that expected text is present
-        return validate_text_mode(ocr_result)
+    print(f"\nTotal Tests: {len(all_results)}")
+    print(f"Passed: {len(passed_tests)}")
+    print(f"Failed: {len(failed_tests)}")
+
+    if failed_tests:
+        print("\n❌ FAILED TESTS:")
+        for test in failed_tests:
+            print(f"  • {test.name}")
+            print(f"    Error: {test.error}")
+
+    if passed_tests:
+        print("\n✅ PASSED TESTS:")
+        for test in passed_tests:
+            print(f"  • {test.name}")
+
+    print("\n" + "="*60)
+    if len(failed_tests) == 0:
+        print("RESULT: SUCCESS - All tests passed!")
     else:
-        # Blocks mode - validate structured output
-        return validate_blocks_mode(ocr_result)
-
-
-def validate_text_mode(ocr_result: str) -> bool:
-    """Validate plain text OCR output."""
-    print("\n" + "="*60)
-    print("Validating plain text OCR results...")
+        print(f"RESULT: FAILED - {len(failed_tests)} test(s) failed")
     print("="*60)
-    
-    # Expected text fragments that should appear in the output
-    expected_fragments = [
-        "We value your privacy",
-        "Strictly necessary",
-        "Performance & analytics",
-        "Advertising",
-        "Decline",
-        "Accept all cookies",
-    ]
-    
-    all_passed = True
-    for fragment in expected_fragments:
-        if fragment.lower() in ocr_result.lower():
-            print(f"✓ PASS: Found '{fragment}'")
-        else:
-            print(f"❌ FAIL: Missing '{fragment}'")
-            all_passed = False
-    
-    print("\n" + "="*60)
-    if all_passed:
-        print("✓ All text mode tests PASSED")
-    else:
-        print("❌ Some text mode tests FAILED")
-    print("="*60)
-    
-    return all_passed
 
-
-def validate_blocks_mode(ocr_result: str) -> bool:
-    """Validate blocks mode OCR output."""
-    print("\n" + "="*60)
-    print("Validating blocks mode OCR results...")
-    print("="*60)
-    
-    results = json.loads(ocr_result)
-    
-    # Expected entries with 2-pixel tolerance for coordinates
-    expected = [
-        {"text": "We value your privacy", "center_x": 195, "center_y": 191, "is_likely_button": False},
-        {"text": "Strictly necessary", "center_x": 168, "center_y": 296, "is_likely_button": False},
-        {"text": "Required for basic website functionality. Always active.", "center_x": 259, "center_y": 320, "is_likely_button": False},
-        {"text": "Performance & analytics", "center_x": 191, "center_y": 375, "is_likely_button": False},
-        {"text": "Advertising", "center_x": 144, "center_y": 453, "is_likely_button": False},
-        {"text": "Decline", "center_x": 989, "center_y": 569, "is_likely_button": True},
-        {"text": "Accept all cookies", "center_x": 1116, "center_y": 569, "is_likely_button": True},
-    ]
-    
-    def coords_match(actual_x, actual_y, expected_x, expected_y, tolerance=2):
-        """Check if coordinates match within tolerance."""
-        return (abs(actual_x - expected_x) <= tolerance and 
-                abs(actual_y - expected_y) <= tolerance)
-    
-    def find_entry(results, text_fragment):
-        """Find an entry that contains the given text fragment."""
-        for entry in results:
-            if text_fragment.lower() in entry["text"].lower():
-                return entry
-        return None
-    
-    all_passed = True
-    for exp in expected:
-        entry = find_entry(results, exp["text"])
-        if not entry:
-            print(f"❌ FAIL: Entry not found: '{exp['text']}'")
-            all_passed = False
-            continue
-        
-        # Check coordinates
-        if not coords_match(entry["center_x"], entry["center_y"], 
-                          exp["center_x"], exp["center_y"]):
-            print(f"❌ FAIL: '{exp['text']}' - coordinates mismatch")
-            print(f"   Expected: ({exp['center_x']}, {exp['center_y']})")
-            print(f"   Got:      ({entry['center_x']}, {entry['center_y']})")
-            all_passed = False
-            continue
-        
-        # Check is_likely_button status
-        expected_button = exp.get("is_likely_button", False)
-        actual_button = entry.get("is_likely_button", False)
-        
-        if expected_button != actual_button:
-            status = "button" if expected_button else "non-button"
-            print(f"❌ FAIL: '{exp['text']}' - should be {status}")
-            print(f"   Expected is_likely_button: {expected_button}")
-            print(f"   Got is_likely_button: {actual_button}")
-            all_passed = False
-            continue
-        
-        button_status = " [button]" if actual_button else ""
-        print(f"✓ PASS: '{exp['text']}' at ({entry['center_x']}, {entry['center_y']}){button_status}")
-    
-    print("\n" + "="*60)
-    if all_passed:
-        print("✓ All blocks mode tests PASSED")
-    else:
-        print("❌ Some blocks mode tests FAILED")
-    print("="*60)
-    
-    return all_passed
+    # Exit with appropriate code
+    if len(failed_tests) > 0:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Test ocr_screenshot with the search-with-banner page")
+    parser = argparse.ArgumentParser(description="Test selenium-dev-mcp ocr_screenshot with a specified browser")
     parser.add_argument(
         "browser",
         choices=["chrome", "firefox"],
@@ -281,6 +349,4 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    
-    # Always test both modes
-    asyncio.run(main(args.browser, None))
+    asyncio.run(main(args.browser))
