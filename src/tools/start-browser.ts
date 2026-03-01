@@ -1,8 +1,8 @@
-import type { ToolResponse, BidiLogEntry } from "../types.js";
+import type { ToolResponse, LogEntry } from "../types.js";
 import { StartBrowserSchema } from "../schemas.js";
-import { buildDriver } from "../browser-builder.js";
+import { buildBrowser } from "../browser-builder.js";
 import { setSession } from "../session.js";
-import { parseBidiJsError, parseBidiConsoleMessage, assignUniqueId } from "../bidi.js";
+import { parsePageError, parseConsoleMessage, assignUniqueId } from "../bidi.js";
 
 export const startBrowserTool = {
   name: "start_browser",
@@ -51,33 +51,30 @@ export async function handleStartBrowser(args: unknown): Promise<ToolResponse> {
   const { browser, headless, width, height, url } = parsed.data;
 
   try {
-    const driver = await buildDriver(browser, headless, width, height);
+    const session = await buildBrowser(browser, headless, width, height);
     const sessionId = `${browser}-${Date.now()}`;
 
-    // Set up BiDi-based log capture for real-time console + error collection
-    const bidiStore: BidiLogEntry[] = [];
-    setSession(sessionId, driver, bidiStore);
+    // Set up Playwright-based log capture for real-time console + error collection
+    const logStore: LogEntry[] = [];
+    setSession(sessionId, session, logStore);
 
-    const driverAny = driver as any;
-    try {
-      await driverAny.script().addJavaScriptErrorHandler((error: any) => {
-        const entry = parseBidiJsError(error);
-        const id = String(entry.timestamp);
-        bidiStore.push({ ...entry, id: assignUniqueId(bidiStore, id) });
-      });
+    // Listen for console messages
+    session.page.on("console", (msg) => {
+      const entry = parseConsoleMessage(msg);
+      const id = String(entry.timestamp);
+      logStore.push({ ...entry, id: assignUniqueId(logStore, id) });
+    });
 
-      await driverAny.script().addConsoleMessageHandler((msg: any) => {
-        const entry = parseBidiConsoleMessage(msg);
-        const id = String(entry.timestamp);
-        bidiStore.push({ ...entry, id: assignUniqueId(bidiStore, id) });
-      });
-    } catch {
-      // BiDi handlers failed – log capture will be unavailable
-    }
+    // Listen for uncaught page errors
+    session.page.on("pageerror", (error) => {
+      const entry = parsePageError(error);
+      const id = String(entry.timestamp);
+      logStore.push({ ...entry, id: assignUniqueId(logStore, id) });
+    });
 
     // Navigate to initial URL if provided
     if (url) {
-      await driver.get(url);
+      await session.page.goto(url, { waitUntil: "load" });
     }
 
     const sizeInfo = width && height ? `, window size ${width}×${height}` : "";

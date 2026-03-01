@@ -1,7 +1,6 @@
-import { Actions, Origin } from "selenium-webdriver";
 import type { ToolResponse } from "../types.js";
 import { ClickAtCoordinatesSchema } from "../schemas.js";
-import { getDriver } from "../session.js";
+import { getPage } from "../session.js";
 
 export const clickAtCoordinatesTool = {
   name: "click_at_coordinates",
@@ -60,8 +59,8 @@ export async function handleClickAtCoordinates(
     relative_by_height,
   } = parsed.data;
 
-  const driver = getDriver(session_id);
-  if (!driver) {
+  const page = getPage(session_id);
+  if (!page) {
     return {
       isError: true,
       content: [
@@ -72,27 +71,22 @@ export async function handleClickAtCoordinates(
 
   try {
     // Determine actual viewport size for scaling
-    const viewport = (await driver.executeScript(
-      "return { width: window.innerWidth, height: window.innerHeight };"
-    )) as { width: number; height: number };
+    const viewport = page.viewportSize();
+    const vpWidth = viewport?.width ?? 1280;
+    const vpHeight = viewport?.height ?? 800;
 
     let targetX = x;
     let targetY = y;
 
     if (relative_by_width) {
-      targetX = Math.round(x * (viewport.width / relative_by_width));
+      targetX = Math.round(x * (vpWidth / relative_by_width));
     }
     if (relative_by_height) {
-      targetY = Math.round(y * (viewport.height / relative_by_height));
+      targetY = Math.round(y * (vpHeight / relative_by_height));
     }
 
-    // Use Selenium Actions API to move to viewport coordinates and click.
-    // Origin.VIEWPORT makes the offset relative to the top-left of the viewport.
-    await driver
-      .actions({ bridge: false })
-      .move({ x: Math.round(targetX), y: Math.round(targetY), origin: Origin.VIEWPORT })
-      .click()
-      .perform();
+    // Playwright's mouse.click uses viewport-relative coordinates directly
+    await page.mouse.click(Math.round(targetX), Math.round(targetY));
 
     return {
       content: [
@@ -101,9 +95,9 @@ export async function handleClickAtCoordinates(
           text:
             `Clicked at (${Math.round(targetX)}, ${Math.round(targetY)})` +
             (relative_by_width || relative_by_height
-              ? ` (scaled from (${x}, ${y}) relative to ${relative_by_width ?? viewport.width}×${relative_by_height ?? viewport.height}, ` +
-                `actual viewport ${viewport.width}×${viewport.height})`
-              : ` in viewport ${viewport.width}×${viewport.height}`),
+              ? ` (scaled from (${x}, ${y}) relative to ${relative_by_width ?? vpWidth}×${relative_by_height ?? vpHeight}, ` +
+                `actual viewport ${vpWidth}×${vpHeight})`
+              : ` in viewport ${vpWidth}×${vpHeight}`),
         },
       ],
     };

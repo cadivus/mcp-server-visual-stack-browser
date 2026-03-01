@@ -1,36 +1,42 @@
-import type { BidiLogEntry } from "./types.js";
+import type { LogEntry } from "./types.js";
+import type { ConsoleMessage } from "playwright";
 
 /**
- * Parse a BiDi JavaScript error into a normalised log entry.
- *
- * BiDi error objects use underscore-prefixed properties:
- *   _text, _level, _timeStamp, _stackTrace { callFrames }, _type
+ * Parse a Playwright page error (uncaught exception) into a normalised log entry.
  */
-export function parseBidiJsError(error: any): Omit<BidiLogEntry, "id"> {
-  let message: string = error._text || error.message || String(error);
-  const timestamp: number = error._timeStamp || Date.now();
-
+export function parsePageError(error: Error): Omit<LogEntry, "id"> {
+  let message = error.message || String(error);
   if (!message.startsWith("Uncaught ")) {
     message = "Uncaught " + message;
   }
 
-  let stack: string | null = null;
-  const stackTrace = error._stackTrace || error.stackTrace;
-  if (stackTrace && stackTrace.callFrames) {
-    const lines = [message];
-    for (const frame of stackTrace.callFrames) {
-      const fnName = frame.functionName || "(anonymous)";
-      lines.push(
-        `    at ${fnName} (${frame.url}:${frame.lineNumber + 1}:${frame.columnNumber + 1})`
-      );
-    }
-    stack = lines.join("\n");
-  } else if (error.stack) {
-    stack = error.stack;
+  let stack = error.stack || null;
+
+  // Normalize anonymous stack frames to include "(anonymous)" for consistency
+  if (stack) {
+    // Chrome anonymous frames: "    at http://..." → "    at (anonymous) (http://...)"
+    stack = stack.replace(
+      /^(\s+at )((?:https?|file):\/\/.+)$/gm,
+      "$1(anonymous) ($2)"
+    );
+    // Playwright-normalised Firefox frames with empty name: "    at  (http://...)" → "    at (anonymous) (http://...)"
+    stack = stack.replace(
+      /^(\s+at)\s+(\((?:https?|file):\/\/.+\))$/gm,
+      "$1 (anonymous) $2"
+    );
+    // Raw Firefox frames: "funcName@URL:line:col" → "    at funcName (URL:line:col)"
+    //                     "@URL:line:col"         → "    at (anonymous) (URL:line:col)"
+    stack = stack.replace(
+      /^([^@\s]*)@((?:https?|file):\/\/.+)$/gm,
+      (_match, fnName: string, location: string) => {
+        const name = fnName || "(anonymous)";
+        return `    at ${name} (${location})`;
+      }
+    );
   }
 
   return {
-    timestamp,
+    timestamp: Date.now(),
     level: "SEVERE",
     type: "error",
     message,
@@ -40,9 +46,9 @@ export function parseBidiJsError(error: any): Omit<BidiLogEntry, "id"> {
 }
 
 /**
- * Parse a BiDi console message into a normalised log entry.
+ * Parse a Playwright console message into a normalised log entry.
  */
-export function parseBidiConsoleMessage(entry: any): Omit<BidiLogEntry, "id"> {
+export function parseConsoleMessage(msg: ConsoleMessage): Omit<LogEntry, "id"> {
   const levelMap: Record<string, string> = {
     error: "SEVERE",
     warn: "WARNING",
@@ -50,26 +56,28 @@ export function parseBidiConsoleMessage(entry: any): Omit<BidiLogEntry, "id"> {
     info: "INFO",
     debug: "DEBUG",
     log: "INFO",
+    trace: "DEBUG",
+    dir: "INFO",
+    assert: "SEVERE",
   };
-  const rawLevel: string = entry._level || entry.level || entry.type || "info";
+  const rawLevel = msg.type();
   const level = levelMap[rawLevel] || "INFO";
-  const text: string =
-    entry._text ||
-    entry.text ||
-    (entry.args
-      ? entry.args
-          .map((a: any) => (a.value != null ? String(a.value) : String(a)))
-          .join(" ")
-      : String(entry));
-  const timestamp: number = entry._timeStamp || entry.timeStamp || Date.now();
+  const text = msg.text();
+  const location = msg.location();
+
+  // Build a stack-like string from the location if available
+  let stack: string | null = null;
+  if (level === "SEVERE" && location.url) {
+    stack = `${text}\n    at ${location.url}:${location.lineNumber + 1}:${location.columnNumber + 1}`;
+  }
 
   return {
-    timestamp,
+    timestamp: Date.now(),
     level,
     type: "console",
     message: text,
-    stack: null,
-    hasStack: false,
+    stack,
+    hasStack: !!stack,
   };
 }
 
@@ -78,7 +86,7 @@ export function parseBidiConsoleMessage(entry: any): Omit<BidiLogEntry, "id"> {
  * Uses the timestamp string as base, appending _N on collision.
  */
 export function assignUniqueId(
-  store: BidiLogEntry[],
+  store: LogEntry[],
   baseId: string
 ): string {
   const usedIds = new Set(store.map((e) => e.id));

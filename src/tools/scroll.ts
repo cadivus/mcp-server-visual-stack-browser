@@ -1,6 +1,6 @@
 import type { ToolResponse } from "../types.js";
 import { ScrollSchema } from "../schemas.js";
-import { getDriver } from "../session.js";
+import { getPage } from "../session.js";
 
 export const scrollTool = {
   name: "scroll",
@@ -43,8 +43,8 @@ export async function handleScroll(args: unknown): Promise<ToolResponse> {
 
   const { session_id, direction, scroll_amount } = parsed.data;
 
-  const driver = getDriver(session_id);
-  if (!driver) {
+  const page = getPage(session_id);
+  if (!page) {
     return {
       isError: true,
       content: [
@@ -54,54 +54,38 @@ export async function handleScroll(args: unknown): Promise<ToolResponse> {
   }
 
   try {
-    const result = (await driver.executeScript(
-      `
-      const pct = arguments[0] / 100;
-      const dir = arguments[1];
-      const isHorizontal = dir === 'left' || dir === 'right';
-      const size = isHorizontal ? window.innerWidth : window.innerHeight;
-      const delta = Math.round(size * pct) * (dir === 'up' || dir === 'left' ? -1 : 1);
-      window.scrollBy({
-        top:  isHorizontal ? 0 : delta,
-        left: isHorizontal ? delta : 0,
-        behavior: 'instant'
-      });
+    const result = await page.evaluate(
+      ([pct, dir]: [number, string]) => {
+        const p = pct / 100;
+        const isHorizontal = dir === 'left' || dir === 'right';
+        const size = isHorizontal ? window.innerWidth : window.innerHeight;
+        const delta = Math.round(size * p) * (dir === 'up' || dir === 'left' ? -1 : 1);
+        window.scrollBy({
+          top:  isHorizontal ? 0 : delta,
+          left: isHorizontal ? delta : 0,
+          behavior: 'instant' as ScrollBehavior
+        });
 
-      // Allow the scroll to settle
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const scrollTop  = document.documentElement.scrollTop  || document.body.scrollTop;
+        const scrollLeft = document.documentElement.scrollLeft || document.body.scrollLeft;
+        const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+        const scrollWidth  = document.documentElement.scrollWidth  || document.body.scrollWidth;
+        const clientHeight = document.documentElement.clientHeight || document.body.clientHeight;
+        const clientWidth  = document.documentElement.clientWidth  || document.body.clientWidth;
 
-      const scrollTop  = document.documentElement.scrollTop  || document.body.scrollTop;
-      const scrollLeft = document.documentElement.scrollLeft || document.body.scrollLeft;
-      const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
-      const scrollWidth  = document.documentElement.scrollWidth  || document.body.scrollWidth;
-      const clientHeight = document.documentElement.clientHeight || document.body.clientHeight;
-      const clientWidth  = document.documentElement.clientWidth  || document.body.clientWidth;
-
-      return {
-        canScrollUp:    scrollTop  > 0,
-        canScrollDown:  scrollTop  + clientHeight < scrollHeight - 1,
-        canScrollLeft:  scrollLeft > 0,
-        canScrollRight: scrollLeft + clientWidth  < scrollWidth  - 1,
-        scrollTop:  Math.round(scrollTop),
-        scrollLeft: Math.round(scrollLeft),
-        scrollHeight, scrollWidth,
-        clientHeight, clientWidth
-      };
-      `,
-      scroll_amount,
-      direction
-    )) as {
-      canScrollUp: boolean;
-      canScrollDown: boolean;
-      canScrollLeft: boolean;
-      canScrollRight: boolean;
-      scrollTop: number;
-      scrollLeft: number;
-      scrollHeight: number;
-      scrollWidth: number;
-      clientHeight: number;
-      clientWidth: number;
-    };
+        return {
+          canScrollUp:    scrollTop  > 0,
+          canScrollDown:  scrollTop  + clientHeight < scrollHeight - 1,
+          canScrollLeft:  scrollLeft > 0,
+          canScrollRight: scrollLeft + clientWidth  < scrollWidth  - 1,
+          scrollTop:  Math.round(scrollTop),
+          scrollLeft: Math.round(scrollLeft),
+          scrollHeight, scrollWidth,
+          clientHeight, clientWidth
+        };
+      },
+      [scroll_amount, direction] as [number, string]
+    );
 
     return {
       content: [

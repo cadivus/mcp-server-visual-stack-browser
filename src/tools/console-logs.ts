@@ -2,6 +2,9 @@ import type { ToolResponse } from "../types.js";
 import { GetConsoleLogsSchema, GetConsoleLogStacktraceSchema } from "../schemas.js";
 import { hasSession, getLogs } from "../session.js";
 
+// NOTE: Playwright captures console messages and page errors natively via
+// page.on('console') and page.on('pageerror'). No BiDi or CDP needed.
+
 export const getConsoleLogsTool = {
   name: "get_console_logs",
   description:

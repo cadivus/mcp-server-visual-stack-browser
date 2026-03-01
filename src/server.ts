@@ -19,7 +19,7 @@ import { ocrScreenshotTool, handleOcrScreenshot, ocrScreenshotSearchTool, handle
 
 // ── MCP Server ────────────────────────────────────────────────────────────────
 export const server = new Server(
-  { name: "selenium-dev-mcp", version: "1.0.0" },
+  { name: "playwright-dev-mcp", version: "1.0.0" },
   { capabilities: { tools: {} } }
 );
 

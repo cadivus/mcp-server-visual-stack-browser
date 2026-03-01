@@ -1,6 +1,6 @@
 import type { ToolResponse } from "../types.js";
 import { TakeScreenshotSchema } from "../schemas.js";
-import { getDriver } from "../session.js";
+import { getPage } from "../session.js";
 
 export const takeScreenshotTool = {
   name: "take_screenshot",
@@ -31,8 +31,8 @@ export async function handleTakeScreenshot(args: unknown): Promise<ToolResponse>
   }
 
   const { session_id } = parsed.data;
-  const driver = getDriver(session_id);
-  if (!driver) {
+  const page = getPage(session_id);
+  if (!page) {
     return {
       isError: true,
       content: [{ type: "text", text: `No session found with ID: ${session_id}` }],
@@ -40,7 +40,9 @@ export async function handleTakeScreenshot(args: unknown): Promise<ToolResponse>
   }
 
   try {
-    const base64 = await driver.takeScreenshot();
+    // Playwright returns a Buffer directly from screenshot()
+    const buffer = await page.screenshot({ type: "png" });
+    const base64 = buffer.toString("base64");
     return {
       content: [
         {

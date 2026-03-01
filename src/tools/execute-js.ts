@@ -1,6 +1,6 @@
 import type { ToolResponse } from "../types.js";
 import { ExecuteJsSchema } from "../schemas.js";
-import { getDriver } from "../session.js";
+import { getPage } from "../session.js";
 
 export const executeJavascriptTool = {
   name: "execute_javascript",
@@ -46,8 +46,8 @@ export async function handleExecuteJavascript(args: unknown): Promise<ToolRespon
   }
 
   const { session_id, script, async: isAsync, args: scriptArgs } = parsed.data;
-  const driver = getDriver(session_id);
-  if (!driver) {
+  const page = getPage(session_id);
+  if (!page) {
     return {
       isError: true,
       content: [{ type: "text", text: `No session found with ID: ${session_id}` }],
@@ -56,30 +56,30 @@ export async function handleExecuteJavascript(args: unknown): Promise<ToolRespon
 
   try {
     let result: unknown;
+
+    // Playwright's evaluate takes a function or string expression.
+    // We wrap the user's script to support `return` statements and `arguments`.
+    // The spread args are passed as individual parameters.
+    const argsList = (scriptArgs as unknown[]) || [];
+
     if (isAsync) {
-      // Wrap in an async IIFE; Selenium's callback receives the resolved value
+      // Wrap in an async IIFE that supports `return`, `await`, and `arguments`
       const wrapped = `
-        const __cb = arguments[arguments.length - 1];
-        Promise.resolve()
-          .then(async () => { ${script} })
-          .then(
-            (v) => __cb({ ok: true, value: v }),
-            (e) => __cb({ ok: false, error: e instanceof Error ? e.message : String(e) })
-          );
+        (async function() {
+          const arguments = [...${JSON.stringify(argsList)}];
+          ${script}
+        })()
       `;
-      const asyncResult = (await driver.executeAsyncScript(
-        wrapped,
-        ...(scriptArgs as unknown[])
-      )) as { ok: boolean; value?: unknown; error?: string };
-      if (!asyncResult.ok) {
-        return {
-          isError: true,
-          content: [{ type: "text", text: `Script error: ${asyncResult.error}` }],
-        };
-      }
-      result = asyncResult.value;
+      result = await page.evaluate(wrapped);
     } else {
-      result = await driver.executeScript(script, ...(scriptArgs as unknown[]));
+      // Wrap in a sync IIFE that supports `return` and `arguments`
+      const wrapped = `
+        (function() {
+          const arguments = [...${JSON.stringify(argsList)}];
+          ${script}
+        })()
+      `;
+      result = await page.evaluate(wrapped);
     }
 
     const resultText =

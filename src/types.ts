@@ -1,7 +1,7 @@
-import type { WebDriver } from "selenium-webdriver";
+import type { Page, Browser, BrowserContext } from "playwright";
 
-/** A normalised log entry captured via the WebDriver BiDi protocol. */
-export interface BidiLogEntry {
+/** A normalised log entry captured via Playwright's console/pageerror events. */
+export interface LogEntry {
   id: string;
   timestamp: number;
   level: string;
@@ -20,5 +20,11 @@ export interface ToolResponse {
   >;
 }
 
-/** Re-export WebDriver so tool modules don't need to import selenium directly. */
-export type { WebDriver };
+/** A Playwright browser session with its associated resources. */
+export interface BrowserSession {
+  browser: Browser;
+  context: BrowserContext;
+  page: Page;
+}
+
+export type { Page, Browser, BrowserContext };

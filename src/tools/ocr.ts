@@ -3,7 +3,7 @@ import type Tesseract from "tesseract.js";
 import sharp from "sharp";
 import type { ToolResponse } from "../types.js";
 import { OcrScreenshotSchema, OcrScreenshotSearchSchema } from "../schemas.js";
-import { getDriver } from "../session.js";
+import { getPage } from "../session.js";
 
 /**
  * Preprocess image for better OCR on light-on-dark text (e.g. white text on blue buttons).
@@ -375,17 +375,18 @@ export async function handleOcrScreenshot(args: unknown): Promise<ToolResponse> 
   }
 
   const { session_id, lang, blocks: wantBlocks } = parsed.data;
-  const driver = getDriver(session_id);
-  if (!driver) {
+  const page = getPage(session_id);
+  if (!page) {
     return {
       isError: true,
       content: [{ type: "text", text: `No session found with ID: ${session_id}` }],
     };
   }
 
-  let base64: string;
+  let imageBuffer: Buffer;
   try {
-    base64 = await driver.takeScreenshot();
+    // Playwright returns a Buffer directly
+    imageBuffer = Buffer.from(await page.screenshot({ type: "png" }));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return {
@@ -394,7 +395,6 @@ export async function handleOcrScreenshot(args: unknown): Promise<ToolResponse> 
     };
   }
 
-  const imageBuffer = Buffer.from(base64, "base64");
   const { original, inverted } = await preprocessForOcr(imageBuffer);
   const worker = await createWorker(lang);
 
@@ -681,17 +681,18 @@ export async function handleOcrScreenshotSearch(args: unknown): Promise<ToolResp
 
   const { session_id, needle, lang } = parsed.data;
   const normalizedNeedle = normalizeForMatch(needle);
-  const driver = getDriver(session_id);
-  if (!driver) {
+  const page = getPage(session_id);
+  if (!page) {
     return {
       isError: true,
       content: [{ type: "text", text: `No session found with ID: ${session_id}` }],
     };
   }
 
-  let base64: string;
+  let imageBuffer: Buffer;
   try {
-    base64 = await driver.takeScreenshot();
+    // Playwright returns a Buffer directly
+    imageBuffer = Buffer.from(await page.screenshot({ type: "png" }));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return {
@@ -700,7 +701,6 @@ export async function handleOcrScreenshotSearch(args: unknown): Promise<ToolResp
     };
   }
 
-  const imageBuffer = Buffer.from(base64, "base64");
   const { original, inverted } = await preprocessForOcr(imageBuffer);
   const worker = await createWorker(lang);
 

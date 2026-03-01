@@ -1,97 +1,30 @@
-import { Builder, WebDriver } from "selenium-webdriver";
-import * as chrome from "selenium-webdriver/chrome.js";
-import * as firefox from "selenium-webdriver/firefox.js";
+import { chromium, firefox } from "playwright";
+import type { BrowserSession } from "./types.js";
 
-/**
- * Adjusts the window size so that the viewport matches the desired dimensions.
- * The viewport is the actual content area, excluding browser chrome (header bar, etc.)
- */
-async function setViewportSize(
-  driver: WebDriver,
-  targetWidth: number,
-  targetHeight: number
-): Promise<void> {
-  // Get current window and viewport sizes
-  const windowRect = await driver.manage().window().getRect();
-
-  const viewportSize = await driver.executeScript<{ width: number; height: number }>(
-    "return { width: window.innerWidth, height: window.innerHeight };"
-  );
-
-  // Calculate the chrome (borders, toolbars, etc.)
-  const chromeWidth = windowRect.width - viewportSize.width;
-  const chromeHeight = windowRect.height - viewportSize.height;
-
-  // Set window size to achieve desired viewport size
-  await driver
-    .manage()
-    .window()
-    .setRect({
-      width: targetWidth + chromeWidth,
-      height: targetHeight + chromeHeight,
-    });
-}
-
-export async function buildDriver(
+export async function buildBrowser(
   browser: "chrome" | "firefox",
   headless: boolean,
   width: number = 1280,
   height: number = 800
-): Promise<WebDriver> {
-  if (browser === "chrome") {
-    const opts = new chrome.Options();
+): Promise<BrowserSession> {
+  const launcher = browser === "chrome" ? chromium : firefox;
 
-    // Enable BiDi protocol for real-time log capture with stack traces
-    (opts as any).enableBidi();
+  const browserInstance = await launcher.launch({
+    headless,
+    ...(browser === "chrome"
+      ? { args: ["--no-sandbox", "--disable-dev-shm-usage"] }
+      : {}),
+  });
 
-    if (headless) {
-      opts.addArguments("--headless=new");
-    }
+  const context = await browserInstance.newContext({
+    viewport: { width, height },
+  });
 
-    // Set initial window size (will be adjusted for viewport later)
-    if (width && height) {
-      opts.addArguments(`--window-size=${width},${height}`);
-    }
+  const page = await context.newPage();
 
-    opts.addArguments("--no-sandbox", "--disable-dev-shm-usage");
-
-    const driver = await new Builder()
-      .forBrowser("chrome")
-      .setChromeOptions(opts)
-      .build();
-
-    // Adjust window size to achieve desired viewport size
-    if (width && height) {
-      await setViewportSize(driver, width, height);
-    }
-
-    return driver;
-  }
-
-  // Firefox
-  const opts = new firefox.Options();
-
-  // Enable BiDi protocol for real-time log capture with stack traces
-  (opts as any).enableBidi();
-
-  if (headless) {
-    opts.addArguments("-headless");
-  }
-
-  // Set initial window size (will be adjusted for viewport later)
-  if (width && height) {
-    opts.addArguments(`-width`, `${width}`, `-height`, `${height}`);
-  }
-
-  const driver = await new Builder()
-    .forBrowser("firefox")
-    .setFirefoxOptions(opts)
-    .build();
-
-  // Adjust window size to achieve desired viewport size
-  if (width && height) {
-    await setViewportSize(driver, width, height);
-  }
-
-  return driver;
+  return {
+    browser: browserInstance,
+    context,
+    page,
+  };
 }

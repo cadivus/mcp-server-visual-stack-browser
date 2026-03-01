@@ -1,11 +1,11 @@
 {
-  "name": "selenium-dev-mcp",
-  "version": "0.0.1",
-  "description": "MCP server for browser automation with Selenium WebDriver",
+  "name": "playwright-dev-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for browser automation with Playwright",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "selenium-dev-mcp": "dist/index.js"
+    "playwright-dev-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -14,14 +14,13 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.6.1",
-    "selenium-webdriver": "^4.27.0",
+    "playwright": "^1.52.0",
     "sharp": "^0.34.5",
     "tesseract.js": "^7.0.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
-    "@types/selenium-webdriver": "^4.1.26",
     "typescript": "^5.7.3"
   }
 }
