@@ -2,7 +2,7 @@ import type { ToolResponse, LogEntry } from "../types.js";
 import { StartBrowserSchema } from "../schemas.js";
 import { buildBrowser } from "../browser-builder.js";
 import { setSession } from "../session.js";
-import { parsePageError, parseConsoleMessage, assignUniqueId } from "../bidi.js";
+import { parsePageError, parseConsoleMessage, assignUniqueId } from "../log-parsing.js";
 
 export const startBrowserTool = {
   name: "start_browser",
