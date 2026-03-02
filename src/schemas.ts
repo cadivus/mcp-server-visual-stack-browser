@@ -121,3 +121,52 @@ export const ScrollSchema = z.object({
       "Percentage of the viewport height to scroll (1-100, default: 70)"
     ),
 });
+
+export const TypeTextSchema = z.object({
+  session_id: z.string().describe("Session ID from start_browser"),
+  text: z.string().describe("The text string to type"),
+  delay: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .default(0)
+    .describe(
+      "Delay between key presses in milliseconds (default: 0). " +
+      "Use a small delay (e.g. 50) to simulate human-like typing."
+    ),
+});
+
+export const PressKeySchema = z.object({
+  session_id: z.string().describe("Session ID from start_browser"),
+  key: z
+    .string()
+    .describe(
+      "The key or key combination to press. " +
+      "Examples: 'Enter', 'Backspace', 'Tab', 'Control+a', 'Control+c', 'Meta+v'."
+    ),
+  count: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .default(1)
+    .describe("Number of times to press the key (default: 1)"),
+});
+
+export const NavigateSchema = z.object({
+  session_id: z.string().describe("Session ID from start_browser"),
+  url: z.string().url().describe("The URL to navigate to"),
+  wait_until: z
+    .enum(["load", "domcontentloaded", "networkidle", "commit"])
+    .optional()
+    .default("load")
+    .describe(
+      "When to consider navigation complete (default: 'load'). " +
+      "Options: 'load', 'domcontentloaded', 'networkidle', 'commit'."
+    ),
+});
+
+export const GetCurrentUrlSchema = z.object({
+  session_id: z.string().describe("Session ID from start_browser"),
+});

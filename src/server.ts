@@ -16,6 +16,10 @@ import { takeScreenshotTool, handleTakeScreenshot } from "./tools/screenshot.js"
 import { clickAtCoordinatesTool, handleClickAtCoordinates } from "./tools/click.js";
 import { scrollTool, handleScroll } from "./tools/scroll.js";
 import { ocrScreenshotTool, handleOcrScreenshot, ocrScreenshotSearchTool, handleOcrScreenshotSearch } from "./tools/ocr.js";
+import { typeTextTool, handleTypeText } from "./tools/type-text.js";
+import { pressKeyTool, handlePressKey } from "./tools/press-key.js";
+import { navigateTool, handleNavigate } from "./tools/navigate.js";
+import { getCurrentUrlTool, handleGetCurrentUrl } from "./tools/get-url.js";
 
 // ── MCP Server ────────────────────────────────────────────────────────────────
 export const server = new Server(
@@ -35,6 +39,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     scrollTool,
     ocrScreenshotTool,
     ocrScreenshotSearchTool,
+    typeTextTool,
+    pressKeyTool,
+    navigateTool,
+    getCurrentUrlTool,
   ],
 }));
 
@@ -49,6 +57,10 @@ const handlers: Record<string, (args: unknown) => Promise<any>> = {
   scroll: handleScroll,
   ocr_screenshot: handleOcrScreenshot,
   ocr_screenshot_search: handleOcrScreenshotSearch,
+  type_text: handleTypeText,
+  press_key: handlePressKey,
+  navigate: handleNavigate,
+  get_current_url: handleGetCurrentUrl,
 };
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
