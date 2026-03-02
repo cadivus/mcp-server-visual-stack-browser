@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+            font-size: 28px;
+        }
+        .info-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #4a90d9;
+            border-radius: 5px;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #555;
+        }
+        .info-value {
+            font-family: 'Courier New', monospace;
+            color: #333;
+            margin-top: 5px;
+            word-break: break-all;
+        }
+        a {
+            color: #4a90d9;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .links {
+            margin-top: 20px;
+        }
+        .links a {
+            display: block;
+            margin: 8px 0;
+            padding: 10px;
+            background: #e8f4fd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Navigation Test</h1>
+
+        <div class="info-section">
+            <div class="info-label">Current URL:</div>
+            <div class="info-value" id="current-url"></div>
+        </div>
+
+        <div class="info-section">
+            <div class="info-label">Query Parameters:</div>
+            <div class="info-value" id="query-params"></div>
+        </div>
+
+        <div class="info-section">
+            <div class="info-label">Page Load Count (via sessionStorage):</div>
+            <div class="info-value" id="load-count"></div>
+        </div>
+
+        <div class="links">
+            <h2>Test Links</h2>
+            <a href="navigation-test.html?page=2&source=link" id="link-page2">Go to Page 2 (with query params)</a>
+            <a href="navigation-test.html?page=3&foo=bar&baz=qux" id="link-page3">Go to Page 3 (with multiple params)</a>
+            <a href="navigation-test.html" id="link-home">Go to Home (no params)</a>
+        </div>
+    </div>
+
+    <script>
+        // Display current URL
+        document.getElementById('current-url').textContent = window.location.href;
+
+        // Display query parameters
+        const params = new URLSearchParams(window.location.search);
+        const paramEntries = [];
+        for (const [key, value] of params) {
+            paramEntries.push(`${key}=${value}`);
+        }
+        document.getElementById('query-params').textContent =
+            paramEntries.length > 0 ? paramEntries.join(', ') : '(none)';
+
+        // Track page loads
+        let count = parseInt(sessionStorage.getItem('loadCount') || '0', 10) + 1;
+        sessionStorage.setItem('loadCount', String(count));
+        document.getElementById('load-count').textContent = String(count);
+    </script>
+</body>
+</html>

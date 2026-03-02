@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyboard Input Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+            font-size: 28px;
+        }
+        .input-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #4a90d9;
+            border-radius: 5px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 16px;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+        input[type="text"]:focus, textarea:focus {
+            border-color: #4a90d9;
+            outline: none;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        .key-log {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f4fd;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #333;
+            min-height: 24px;
+        }
+        #key-events {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Keyboard Input Test</h1>
+
+        <div class="input-section">
+            <label for="text-input">Text Input</label>
+            <input type="text" id="text-input" placeholder="Type something here...">
+            <div class="key-log">
+                Current value: <span id="input-value"></span>
+            </div>
+        </div>
+
+        <div class="input-section">
+            <label for="textarea-input">Textarea</label>
+            <textarea id="textarea-input" placeholder="Type multiline text here..."></textarea>
+            <div class="key-log">
+                Current value: <span id="textarea-value"></span>
+            </div>
+        </div>
+
+        <div class="input-section">
+            <label>Key Events Log</label>
+            <div id="key-events" class="key-log"></div>
+        </div>
+    </div>
+
+    <script>
+        const textInput = document.getElementById('text-input');
+        const textareaInput = document.getElementById('textarea-input');
+        const inputValue = document.getElementById('input-value');
+        const textareaValue = document.getElementById('textarea-value');
+        const keyEvents = document.getElementById('key-events');
+
+        function updateValues() {
+            inputValue.textContent = textInput.value;
+            textareaValue.textContent = textareaInput.value;
+        }
+
+        function logKeyEvent(e) {
+            const parts = [e.type, e.key];
+            if (e.ctrlKey) parts.push('Ctrl');
+            if (e.shiftKey) parts.push('Shift');
+            if (e.altKey) parts.push('Alt');
+            if (e.metaKey) parts.push('Meta');
+            const line = document.createElement('div');
+            line.textContent = parts.join(' | ');
+            keyEvents.appendChild(line);
+            keyEvents.scrollTop = keyEvents.scrollHeight;
+        }
+
+        textInput.addEventListener('input', updateValues);
+        textareaInput.addEventListener('input', updateValues);
+        textInput.addEventListener('keydown', logKeyEvent);
+        textareaInput.addEventListener('keydown', logKeyEvent);
+
+        updateValues();
+    </script>
+</body>
+</html>
