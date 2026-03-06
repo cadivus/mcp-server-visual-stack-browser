@@ -1,6 +1,9 @@
 import { createWorker } from "tesseract.js";
 import type Tesseract from "tesseract.js";
 import sharp from "sharp";
+import os from "os";
+import path from "path";
+import fs from "fs";
 import type { ToolResponse } from "../types.js";
 import { OcrScreenshotSchema, OcrScreenshotSearchSchema } from "../schemas.js";
 import { getPage } from "../session.js";
@@ -15,6 +18,18 @@ import {
   detectButtons,
   toSearchEntry,
 } from "../ocr/index.js";
+
+// cache directory for tesseract traineddata
+const TESS_CACHE_DIR = path.join(os.tmpdir(), "selenium-dev-mcp-tessdata");
+
+// ensure directory exists before worker tries to write
+try {
+  fs.mkdirSync(TESS_CACHE_DIR, { recursive: true });
+} catch (err) {
+  // if creation fails, we'll simply let tesseract.js fall back to default
+  // but we'll log to console to aid debugging
+  console.warn(`Unable to create Tesseract cache dir ${TESS_CACHE_DIR}:`, err);
+}
 
 // ── ocr_screenshot ────────────────────────────────────────────────────────────
 
@@ -82,7 +97,10 @@ export async function handleOcrScreenshot(args: unknown): Promise<ToolResponse> 
   }
 
   const { original, inverted } = await preprocessForOcr(imageBuffer);
-  const worker = await createWorker(lang);
+
+  const worker = await createWorker(lang, undefined, {
+    cachePath: TESS_CACHE_DIR,
+  });
 
   try {
     const [originalResult, invertedResult] = await Promise.all([
@@ -219,7 +237,10 @@ export async function handleOcrScreenshotSearch(args: unknown): Promise<ToolResp
   }
 
   const { original, inverted } = await preprocessForOcr(imageBuffer);
-  const worker = await createWorker(lang);
+
+  const worker = await createWorker(lang, undefined, {
+    cachePath: TESS_CACHE_DIR,
+  });
 
   try {
     const [originalResult, invertedResult] = await Promise.all([
