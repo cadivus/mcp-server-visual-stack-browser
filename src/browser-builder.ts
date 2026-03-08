@@ -1,11 +1,7 @@
 import { chromium, firefox } from "playwright";
-import { existsSync } from "fs";
+import { existsSync, readdirSync } from "fs";
 import type { BrowserSession } from "./types.js";
 
-/**
- * Returns the path to a locally installed Firefox binary on macOS or Linux.
- * Returns undefined if none of the known paths exist.
- */
 function findLocalFirefoxPath(): string | undefined {
   const candidates =
     process.platform === "darwin"
@@ -27,10 +23,6 @@ function findLocalFirefoxPath(): string | undefined {
   return candidates.find((p) => existsSync(p));
 }
 
-/**
- * Returns the path to a locally installed Chromium/Chrome binary on macOS or Linux.
- * Used as a fallback when the 'chrome' channel is unavailable.
- */
 function findLocalChromiumPath(): string | undefined {
   const candidates =
     process.platform === "darwin"
@@ -52,6 +44,30 @@ function findLocalChromiumPath(): string | undefined {
   return candidates.find((p) => existsSync(p));
 }
 
+function resolveLinuxDisplayEnv(env: NodeJS.ProcessEnv): void {
+  const runtimeDir =
+    env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.() ?? 0}`;
+
+  if (!env.XDG_RUNTIME_DIR) {
+    env.XDG_RUNTIME_DIR = runtimeDir;
+  }
+
+  if (env.DISPLAY || env.WAYLAND_DISPLAY) return;
+
+  if (process.env.XDG_SESSION_TYPE === "wayland") {
+    env.WAYLAND_DISPLAY = "wayland-0";
+  } else {
+    try {
+      const sock = readdirSync(runtimeDir).find((n) => n.startsWith("wayland-"));
+      if (sock) env.WAYLAND_DISPLAY = sock;
+    } catch {
+      // no runtime dir available
+    }
+  }
+
+  env.DISPLAY = ":0";
+}
+
 export async function buildBrowser(
   browser: "chrome" | "firefox",
   headless: boolean,
@@ -60,16 +76,34 @@ export async function buildBrowser(
 ): Promise<BrowserSession> {
   let browserInstance;
 
+  const browserEnv: NodeJS.ProcessEnv = { ...process.env };
+
+  if (process.platform === "linux" && !headless) {
+    resolveLinuxDisplayEnv(browserEnv);
+
+    if (!browserEnv.DISPLAY && !browserEnv.WAYLAND_DISPLAY) {
+      console.warn("no display server detected; switching to headless mode");
+      headless = true;
+    }
+  }
+
   if (browser === "chrome") {
-    // Try the 'chrome' channel first – Playwright resolves the system Chrome
-    // installation automatically on both macOS and Linux without downloading
-    // anything. Fall back to an explicit executablePath if needed.
     const executablePath = findLocalChromiumPath();
+
+    const chromeArgs = ["--disable-dev-shm-usage"];
+    if (process.platform === "linux") {
+      chromeArgs.push("--ozone-platform-hint=auto");
+      if (browserEnv.WAYLAND_DISPLAY) {
+        chromeArgs.push("--enable-features=UseOzonePlatform", "--ozone-platform=wayland");
+      }
+    }
+
     try {
       browserInstance = await chromium.launch({
         channel: "chrome",
-        headless,
-        args: ["--no-sandbox", "--disable-dev-shm-usage"],
+        headless: headless,
+        args: chromeArgs,
+        env: browserEnv,
       });
     } catch {
       if (!executablePath) {
@@ -80,8 +114,9 @@ export async function buildBrowser(
       }
       browserInstance = await chromium.launch({
         executablePath,
-        headless,
-        args: ["--no-sandbox", "--disable-dev-shm-usage"],
+        headless: headless,
+        args: chromeArgs,
+        env: browserEnv,
       });
     }
   } else {
@@ -95,6 +130,7 @@ export async function buildBrowser(
     browserInstance = await firefox.launch({
       executablePath,
       headless,
+      env: browserEnv,
     });
   }
 
