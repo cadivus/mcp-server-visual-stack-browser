@@ -1,6 +1,6 @@
 {
   "name": "@cadivus/mcp-server-visual-stack-browser",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "MCP server for visual browser navigation, OCR-based coordinate clicking, and JS stack trace debugging.",
   "type": "module",
   "main": "dist/index.js",
