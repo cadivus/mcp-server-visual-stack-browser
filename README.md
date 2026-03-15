@@ -61,8 +61,6 @@ This server exposes the following tools via the MCP `ListTools` / `CallTool` API
 
 ## ⚙️ Installation & Quick Start
 
-*(Add your installation instructions here. E.g., `npm install -g mcp-server-visual-stack-browser` or cloning instructions)*
-
 ### Claude Desktop Configuration
 
 To use this with Claude Desktop, add the following to your `claude_desktop_config.json`:
