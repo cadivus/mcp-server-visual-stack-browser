@@ -72,7 +72,7 @@ To use this with Claude Desktop, add the following to your `claude_desktop_confi
   "mcpServers": {
     "visual-stack-browser": {
       "command": "npx",
-      "args": ["-y", "mcp-server-visual-stack-browser"]
+      "args": ["-y", "@cadivus/mcp-server-visual-stack-browser"]
     }
   }
 }
