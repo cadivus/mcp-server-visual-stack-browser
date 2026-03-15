@@ -1,16 +1,29 @@
 {
-  "name": "playwright-dev-mcp",
+  "name": "@cadivus/mcp-server-visual-stack-browser",
   "version": "0.1.0",
-  "description": "MCP server for browser automation with Playwright",
+  "description": "MCP server for visual browser navigation, OCR-based coordinate clicking, and JS stack trace debugging.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "playwright-dev-mcp": "dist/index.js"
+    "mcp-server-visual-stack-browser": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cadivus/mcp-server-visual-stack-browser.git"
+  },
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "prepare": "npm run build",
+    "inspect": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.6.1",
@@ -20,6 +33,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@modelcontextprotocol/inspector": "^0.21.1",
     "@types/node": "^22.13.4",
     "typescript": "^5.7.3"
   }
